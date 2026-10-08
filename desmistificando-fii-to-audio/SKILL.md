@@ -26,4 +26,4 @@ Script: `${CLAUDE_SKILL_DIR}/scripts/audio.py`. Ele usa `scripts/falar.py` para 
 3. Saída: pasta `<nome do md> - audio/`, com `NN - <título>.mp3` (um arquivo por seção), `Relatorio FII NN.m4b` (com capítulos) e `roteiro.txt` (o texto exatamente como foi falado).
 4. Responda com o número de faixas, a duração total e o caminho da pasta.
 
-A pronúncia é ajustada no `scripts/falar.py`: o dicionário `SIGLAS` cobre siglas e abreviações, e `LETRAS`/`TICKER` cuidam da soletração dos tickers. Se o usuário reclamar de alguma pronúncia, ajuste ali e teste com `python3 ${CLAUDE_SKILL_DIR}/scripts/falar.py "frase"`.
+A pronúncia é ajustada no `scripts/falar.py`: o dicionário `TICKERS` define como cada ticker é falado (ex.: `"TEPP": "tépi"`), os que não estão nele são soletrados por `LETRAS`, e `SIGLAS` cobre siglas e abreviações. Se o usuário reclamar de alguma pronúncia, ajuste ali e teste com `python3 ${CLAUDE_SKILL_DIR}/scripts/falar.py "frase"`.
