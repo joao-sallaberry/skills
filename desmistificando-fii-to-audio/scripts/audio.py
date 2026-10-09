@@ -17,6 +17,8 @@ from falar import falar
 VOZ = "pt-BR-AntonioNeural"
 TENTATIVAS = 3
 PARALELO = 4
+# seções que ficam só no .md (tabelas); o disclaimer entra só com --com-disclaimer
+SEM_AUDIO = ("Carteira Recomendada", "Retornos Nominais")
 
 
 class Erro(Exception):
@@ -31,28 +33,6 @@ def ler_md(texto):
     if not secoes:
         raise Erro("nenhuma seção '## NN. Título' no arquivo: ele foi gerado pelo extrair.py?")
     return cab, secoes
-
-
-def tabela(corpo):
-    """Linhas de uma tabela Markdown como dicts (pula o separador)."""
-    linhas = [l for l in corpo.splitlines() if l.startswith("|") and not re.match(r"^\|[-|]+\|$", l)]
-    if not linhas:
-        return []
-    cel = lambda l: [c.strip() for c in l.strip("|").split("|")]
-    cab = cel(linhas[0])
-    out = []
-    for l in linhas[1:]:
-        c = cel(l)
-        # cabeçalho "Ano" duplicado (ano da linha e retorno no ano): guarda os dois como lista
-        d = {}
-        for k, v in zip(cab, c):
-            d.setdefault(k, []).append(v)
-        out.append(d)
-    return out
-
-
-def sem_tabela(corpo):
-    return "\n".join(l for l in corpo.splitlines() if not l.startswith("|"))
 
 
 def frases(corpo):
@@ -76,14 +56,11 @@ def frases(corpo):
 
 
 def fundos_falados(linha_fundos):
-    """'Fundos: RBRX11 (Multiestratégia, R$ 7,36) · ...' → frases."""
+    """'Fundos: RBRX11 (Multiestratégia, R$ 7,36) · ...' → 'RBRX11, multiestratégia.' (sem a cotação)."""
     out = []
     for m in re.finditer(r"([A-Z]{4}\d{2}) \(([^)]*)\)", linha_fundos):
-        info = [x.strip() for x in m.group(2).split(",", 1)] if "R$" in m.group(2) else [m.group(2)]
-        preco = next((x for x in info if x.startswith("R$")), None)
-        seg = next((x for x in info if not x.startswith("R$")), None)
-        partes = [m.group(1)] + ([seg.lower()] if seg else []) + ([f"cotado a {preco}"] if preco else [])
-        out.append(", ".join(partes) + ".")
+        seg = m.group(2).split("R$")[0].strip(" ,")
+        out.append(f"{m.group(1)}, {seg.lower()}." if seg else f"{m.group(1)}.")
     return " ".join(out)
 
 
@@ -91,46 +68,13 @@ def roteiro_secao(titulo, corpo):
     linhas = corpo.splitlines()
     if linhas and linhas[0].startswith("Fundos:"):
         return fundos_falados(linhas[0]) + "\n\n" + frases("\n".join(linhas[1:]))
-    if titulo == "Carteira Recomendada":
-        txt = [f"{titulo}.", frases(sem_tabela(corpo))]
-        for r in tabela(corpo):
-            g = lambda k: (r.get(k) or [""])[0]
-            txt.append(f"{g('Fundo')}, {g('Setor').lower()}, cotado a {g('Cotação')}, "
-                       f"peso de {g('Peso Atual')} na carteira, recomendação: {g('Recomendação').lower()}.")
-        return "\n".join(txt)
-    if titulo.startswith("Retornos Nominais"):
-        rows = tabela(corpo)
-        txt = [f"{titulo}."]
-        if rows:
-            ano = rows[-1]["Ano"][0]
-            txt.append(f"Resultados de {ano}, no ano e acumulado desde o início:")
-            for r in rows:
-                if r["Ano"][0] == ano:
-                    nome = r["Ativo"][0].replace("IPCADP+6%aa", "IPCA mais 6% ao ano")
-                    no_ano = r["Ano"][1] if len(r["Ano"]) > 1 else "?"
-                    txt.append(f"{nome}: {no_ano}% no ano, {r['Acum'][0]}% acumulado.")
-        txt.append(frases(sem_tabela(corpo)))
-        return "\n".join(txt)
     return f"{titulo}.\n\n" + frases(corpo)
 
 
-def abertura(cab):
+def metadados(cab):
+    """Edição e data de divulgação, do cabeçalho do .md."""
     m = re.search(r"nº (\d+) — divulgação (\S+)", cab)
-    per = re.search(r"Período: ([^·\n]+)", cab)
-    ana = re.search(r"Analista: (.+)", cab)
-    abord = re.search(r"Fundos abordados: (.+)", cab)
-    txt = []
-    if m:
-        txt.append(f"Relatório semanal de fundos imobiliários, edição {m.group(1)}, divulgada em {m.group(2)}.")
-    if per:
-        txt.append(f"Período de {per.group(1).strip()}.")
-    if ana:
-        txt.append(f"Análise de {ana.group(1).strip()}.")
-    if abord:
-        tickers = re.findall(r"[A-Z]{4}\d{2}", abord.group(1))
-        tickers = list(dict.fromkeys(tickers))
-        txt.append(f"{len(tickers)} fundos abordados: {', '.join(tickers)}.")
-    return " ".join(txt), (m.group(1) if m else "?"), (m.group(2) if m else "")
+    return (m.group(1), m.group(2)) if m else ("?", "")
 
 
 def nome_arquivo(n, titulo):
@@ -201,7 +145,7 @@ def main():
     ap.add_argument("--voz", default=VOZ, help=f"voz do edge-tts (padrão {VOZ}; ex.: pt-BR-FranciscaNeural)")
     ap.add_argument("--velocidade", default="+0%", help="ex.: +10%%, -5%%")
     ap.add_argument("--com-disclaimer", action="store_true", help="inclui o disclaimer no áudio")
-    ap.add_argument("--so", help="só estas seções, ex.: 0,1,3 (0 = abertura)")
+    ap.add_argument("--so", help="só estas seções, ex.: 1,3 (números do .md)")
     ap.add_argument("--sem-m4b", action="store_true", help="não gera o .m4b com capítulos")
     ap.add_argument("--force", action="store_true", help="sobrescreve a pasta de saída")
     args = ap.parse_args()
@@ -214,10 +158,10 @@ def main():
 
     try:
         cab, secoes = ler_md(args.md.read_text(encoding="utf-8"))
-        texto_abertura, edicao, data = abertura(cab)
-        faixas = [(0, "Abertura", texto_abertura)]
+        edicao, data = metadados(cab)
+        faixas = []
         for n, titulo, corpo in secoes:
-            if titulo == "Disclaimer" and not args.com_disclaimer:
+            if titulo.startswith(SEM_AUDIO) or (titulo == "Disclaimer" and not args.com_disclaimer):
                 continue
             faixas.append((n, titulo, roteiro_secao(titulo, corpo)))
         if args.so:
