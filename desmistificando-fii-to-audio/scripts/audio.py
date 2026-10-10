@@ -169,7 +169,7 @@ def main():
             faixas = [f for f in faixas if f[0] in quero]
         faixas = [(n, t, falar_bloco(txt)) for n, t, txt in faixas]
 
-        pasta = args.out or args.md.with_name(f"{args.md.stem} - audio")
+        pasta = (args.out or args.md.with_name(f"{args.md.stem} - audio")).resolve()
         if pasta.exists() and any(pasta.iterdir()) and not args.force:
             raise Erro(f"{pasta} já existe e não está vazia (use --force)")
         if pasta.exists() and args.force:
