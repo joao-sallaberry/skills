@@ -7,16 +7,14 @@ import math
 import re
 from decimal import ROUND_HALF_UP, Decimal
 
-# Siglas e abreviações → forma falada. Edite à vontade; a busca é por palavra inteira.
+# Siglas e abreviações → forma falada. A busca é por palavra inteira.
 SIGLAS = {
-    "FIIs": "fundos imobiliários",
-    "FII": "fundo imobiliário",
-    "FoFs": "fundos de fundos",
-    "FoF": "fundo de fundos",
-    "P/VP": "P sobre VP",
+    "FIIs": "fi is",
+    "FII": "fi i",
+    "FoFs": "fófis",
+    "FoF": "fófi",
+    "P/VP": "PVP",
     "DY": "dividend yield",
-    "IR": "imposto de renda",
-    "PL": "patrimônio líquido",
     "IGPM": "IGP-M",
     "NTNB": "NTN-B",
     "IMAB5": "IMA-B 5",
@@ -25,15 +23,27 @@ SIGLAS = {
     "nº": "número",
 }
 
+# Palavras em inglês → grafia que a voz pt-BR lê com som de inglês. A busca ignora maiúsculas.
+INGLES = {
+    "asset": "ásset",
+    "cap rate": "kép rêit",
+    "mall": "mól",
+    "Shopee": "xopí",
+}
+
 # Pronúncia das 4 letras do ticker (vale para 11, 12, 13...). Sem entrada aqui, o ticker é soletrado.
 TICKERS = {
     "BROF": "brófi",
     "CLIN": "clin",
     "FIIB": "fiib",
+    "HABT": "habitá",
+    "HREC": "H rec",
     "KNIP": "canipe",
     "KIVO": "kivo",
+    "RZAT": "R zat",
     "TEPP": "tépi",
     "VILG": "vilg",
+    "VISC": "visc",
 }
 
 LETRAS = {
@@ -118,6 +128,8 @@ def falar(texto):
     t = DATA.sub(data_falada, t)
     for sigla, fala in sorted(SIGLAS.items(), key=lambda kv: -len(kv[0])):
         t = re.sub(rf"(?<![\w/]){re.escape(sigla)}(?![\w/])", fala, t)
+    for palavra, fala in sorted(INGLES.items(), key=lambda kv: -len(kv[0])):
+        t = re.sub(rf"(?<![\w/]){re.escape(palavra)}(?![\w/])", fala, t, flags=re.IGNORECASE)
     t = TICKER.sub(soletrar_ticker, t)
     t = re.sub(r"\bp\.p\.", "pontos percentuais", t)
     t = re.sub(r"%\s?a\.?a\.?(?=\W|$)", "% ao ano", t)
